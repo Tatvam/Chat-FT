@@ -17,7 +17,7 @@ struct sockaddr_in sockinfo;
 struct timeval tv;
 int sock_fd;
 int opt = 1;
-int client_list[Max_Client] = {0};
+int client_list[Max_Client];
 int i;
 char buffer[1024];
 
@@ -56,6 +56,12 @@ void build_fd_sets(fd_set *readfds,fd_set *writefds,fd_set *exceptfds){
     FD_ZERO(readfds);
     FD_SET(STDIN_FILENO,readfds);
     FD_SET(sock_fd,readfds);
+
+    for(int i = 0;i<Max_Client;i++){
+        if(client_list[i]!=-1){
+            FD_SET(client_list[i],readfds);
+        }
+    }
     return;
 }
 int main(){
@@ -76,17 +82,19 @@ int main(){
     tv.tv_usec = 500000;
 
     printf("Waiting for incoming connections.\n");
+    for(i = 0;i<Max_Client;i++){
+        client_list[i]=-1;
+    }
     while(1){
-    
         build_fd_sets(&readfds,&writefds,&exceptfds);
         int new_fd;
         int info_size = sizeof(sockinfo);
         int sel = select(mx_fd+1,&readfds,NULL,NULL,NULL);
         if(sel == -1){
             perror("Select()");
-        }//else if(sel == 0){
-           // printf("Timeout Occured");
-       //}
+        }else if(sel == 0){
+           printf("Timeout Occured");
+       }
         else{
             if(FD_ISSET(sock_fd,&readfds)){
                 if((new_fd = accept(sock_fd,(struct sockaddr *)&sockinfo,&info_size))<0){
@@ -94,6 +102,9 @@ int main(){
                     exit(EXIT_FAILURE);
                 }
                 char str[1000];
+                if(new_fd > mx_fd){
+                     mx_fd = new_fd;
+                  }
                 inet_ntop(AF_INET, &(sockinfo.sin_addr), str, 1000); 
                  printf("New connection , socket fd is %d , ip is : %s , port : %d\n" , new_fd ,str, ntohs (sockinfo.sin_port)); 
                 if(send(new_fd,s,strlen(s),0)!=strlen(s)){
@@ -102,7 +113,7 @@ int main(){
                  puts("Welcome message sent successfully");   
 
                  for(i = 0;i<Max_Client;i++){
-                     if(client_list[i]==0){
+                     if(client_list[i]==-1){
                          client_list[i]=new_fd;
                          if(new_fd > mx_fd){
                             mx_fd = new_fd;
@@ -110,14 +121,14 @@ int main(){
                          break;
                      }
                  }
+                // FD_SET(new_fd,&readfds);
              }
              int check_fd;
              for(i = 0;i<Max_Client;i++){
-                 check_fd = client_list[i];
-
+                 int check_fd = client_list[i];
                  if(FD_ISSET(check_fd,&readfds)){
-                     int read_val;
-                     if ((read_val = recv(check_fd , buffer, 1024,0)) == 0){   
+                     int read_val = recv(check_fd , buffer, 1024,0);
+                     if (read_val == 0){   
                         char str[1000];
                         getpeername(check_fd , (struct sockaddr*)&sockinfo ,&(info_size));
                         inet_ntop(AF_INET, &(sockinfo.sin_addr), str, 1000);   
@@ -126,15 +137,20 @@ int main(){
                         close(check_fd);   
                         client_list[i] = 0;   
                         }     
-                else 
-                {   printf("%s\n",buffer);
-                    buffer[read_val] = '\0';   
-                    send(check_fd , buffer , strlen(buffer) , 0 );   
-                }   
-                 }
-             }
-         }
-     }
+                else{   
+                    buffer[read_val]='\0';
+                    printf("%s\n",buffer);
+                   // buffer[read_val] = '\0';  
+                   // fflush(stdout); 
+                    for(i = 0;i<Max_Client;i++){
+                     if(client_list[i]!=-1){
+                        send(client_list[i] , buffer , strlen(buffer) , 0 );   
+                        }   
+                     }
+                }
+            }
+        }
 
     }
-
+  }
+}

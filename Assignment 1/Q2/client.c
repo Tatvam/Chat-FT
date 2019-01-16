@@ -29,11 +29,17 @@ int main(){
 
     char buffer[1000];
     char rec[1000];
+    int len = read(sock_fd,rec,1000);
+    rec[len]='\0';
+    printf("%s\n",rec);
     printf("Request to server\n");
     while(1){
-    read(sock_fd,rec,1000);
-    printf("%s\n",rec);
+   // sleep(4);
     scanf(" %[^\n]",buffer);
+    sleep(4);
     send(sock_fd,buffer,sizeof(buffer),0);
+    int len = read(sock_fd,rec,1000);
+    rec[len]='\0';
+    printf("%s\n",rec);
     }
 }
