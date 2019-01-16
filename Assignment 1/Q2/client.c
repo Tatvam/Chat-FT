@@ -30,9 +30,10 @@ int main(){
     char buffer[1000];
     char rec[1000];
     printf("Request to server\n");
-    scanf(" %[^\n]",buffer);
-    send(sock_fd,buffer,sizeof(buffer),0);
+    while(1){
     read(sock_fd,rec,1000);
     printf("%s\n",rec);
-
+    scanf(" %[^\n]",buffer);
+    send(sock_fd,buffer,sizeof(buffer),0);
+    }
 }
